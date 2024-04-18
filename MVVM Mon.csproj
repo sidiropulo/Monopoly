@@ -30,8 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DataBaseContext\DataBaseContext.csproj" />
-    <ProjectReference Include="..\Logger\Logger.csproj" />
+     
   </ItemGroup>
 
   <ItemGroup>
