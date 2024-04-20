@@ -20,6 +20,8 @@ namespace MVVM_Mon
 				desktop.MainWindow = new MainWindow
 				{
 					DataContext = new MainWindowViewModel(),
+					Width = 1400,
+					WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen
 				};
 			}
 

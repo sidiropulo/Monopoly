@@ -1,7 +1,13 @@
-﻿using MVVM_Mon.Models;
+﻿using Avalonia.Controls;
+using Avalonia.Threading;
+using Microsoft.EntityFrameworkCore;
+using MonopolyDatabaseContext.DatabaseContext;
+using MVVM_Mon.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace MVVM_Mon.ViewModels
 {
@@ -9,11 +15,17 @@ namespace MVVM_Mon.ViewModels
 	{
 		public ObservableCollection<PalletViewModel> Pallets { get; set; }
 
+		public TreeView DbTreeView { get; set; }
+
 		public MainWindowViewModel()
 		{
 			Pallets = new ObservableCollection<PalletViewModel>();
-        }
 
+			DbTreeView = new TreeView() { 
+	             Width =  700
+			};
+
+		}
         //  Получение данных для приложения можно организовать одним из способов:
         // Реализация: Генерация прямо в приложении
         internal void InitializeInApp()
@@ -53,8 +65,77 @@ namespace MVVM_Mon.ViewModels
             {
                 Pallets.Add(new PalletViewModel(pallet));
             }
-
-
         }
-    }
+        //  Получение данных для приложения можно организовать одним из способов:
+        // Реализация: Получение из БД (postgres)
+        internal async Task InitializeFromDbAsync()
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                using (var context = new VpmContext())
+                {
+                    var palletsFromDb = await context.Palletsdbs.Include(p => p.Boxesdbs).ToListAsync();
+
+                    var groupedPallets = palletsFromDb
+                        .OrderBy(p => p.ExpiryDate)
+                        .GroupBy(p => p.ExpiryDate);
+
+                    DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+                    foreach (var expiryGroup in groupedPallets)
+                    {
+                        DateOnly expiryDatePlus100Days = expiryGroup.Key.AddDays(100);
+                        bool isGroupValid = expiryDatePlus100Days > today;
+
+                        TreeViewItem mainNode = new TreeViewItem();
+                        mainNode.Header = $"Группа по сроку годности: {expiryGroup.Key} (Состояние: {(isGroupValid ? "Годен 🍔" : "Просрочен 🚩")})";
+
+                        var sortedPallets = expiryGroup.OrderBy(p => p.Weight);
+
+                        var topThreePallets = sortedPallets.OrderByDescending(p => p.Volume).Take(3).ToList();
+                        var rankNames = new string[] { "🏆", "🥈", "🥉" };
+                        int palletIndex = 0;
+
+                        foreach (var palletViewModel in topThreePallets)
+                        {
+                            TreeViewItem palletNode = CreatePalletNode(palletViewModel, rankNames[palletIndex]);
+                            mainNode.Items.Add(palletNode);
+                            palletIndex++;
+                        }
+
+                        foreach (var palletDbViewModel in sortedPallets.Except(topThreePallets))
+                        {
+                            TreeViewItem palletNode = CreatePalletNode(palletDbViewModel);
+                            mainNode.Items.Add(palletNode);
+                        }
+
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            DbTreeView.Items.Add(mainNode);
+                        });
+                    }
+                }
+            });
+        }
+        private TreeViewItem CreatePalletNode(Palletsdb palletDbViewModel, string rankName = "")
+        {
+            TreeViewItem palletNode = new TreeViewItem();
+            palletNode.Header = $"Палет: {palletDbViewModel.PalletName} Годен до: {palletDbViewModel.ExpiryDate}, Вес: {palletDbViewModel.Weight}, Объем: {palletDbViewModel.Volume} у.е.  {rankName}";
+
+            foreach (var boxDbViewModel in palletDbViewModel.Boxesdbs)
+            {
+                TreeViewItem boxNode = CreateBoxNode(boxDbViewModel);
+                palletNode.Items.Add(boxNode);
+            }
+
+            return palletNode;
+        }
+
+        private TreeViewItem CreateBoxNode(Boxesdb boxDbViewModel)
+        {
+            TreeViewItem boxNode = new TreeViewItem();
+            boxNode.Header = $"Коробка: {boxDbViewModel.BoxName} Дата производства: {boxDbViewModel.ProductionDate}, Годен до: {boxDbViewModel.ExpiryDate}, Объем: {boxDbViewModel.Volume} у.е.";
+            return boxNode;
+        }
+         
+	}
 }
