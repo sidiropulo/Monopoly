@@ -1,9 +1,11 @@
 # Руководство по установке и настройке приложения
+## Пометка
+Был нарочно нарушен принцип DRY в методах работающих с взятием данных из приложения и БД.
+
+## Установка необходимых пакетов
 ```bash
 dotnet new install package Avalonia.Templates
 ```
-
-## Установка необходимых пакетов
 
 Для начала работы с приложением требуется установить пакет Avalonia.Templates. Для этого выполните следующую команду в терминале:
 
@@ -28,3 +30,5 @@ dotnet new install package Avalonia.Templates
   "DefaultConnection": "Host=localhost;Port=5432;Database=vpm;Username=postgres;Password=1313"
 }
 ```
+
+ 
